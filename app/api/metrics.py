@@ -2,8 +2,7 @@ from fastapi import APIRouter
 from datetime import datetime
 from typing import Optional
 
-from app.core.event_store import query_events
-from app.core.alert_builder import build_alerts_from_events
+from app.db.repository import fetch_events, fetch_alerts
 
 router = APIRouter()
 
@@ -13,12 +12,35 @@ def get_metrics(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ):
-    events = query_events(
-        start_time=start_time,
-        end_time=end_time,
-    )
+    events = fetch_events(limit=10000, offset=0)
+    alerts = fetch_alerts(limit=10000, offset=0)
 
-    alerts = build_alerts_from_events(events)
+    if start_time or end_time:
+        filtered_events = []
+        for e in events:
+            event_time = datetime.fromisoformat(e["timestamp"])
+
+            if start_time and event_time < start_time:
+                continue
+            if end_time and event_time > end_time:
+                continue
+
+            filtered_events.append(e)
+
+        events = filtered_events
+
+        filtered_alerts = []
+        for a in alerts:
+            alert_time = datetime.fromisoformat(a["timestamp"])
+
+            if start_time and alert_time < start_time:
+                continue
+            if end_time and alert_time > end_time:
+                continue
+
+            filtered_alerts.append(a)
+
+        alerts = filtered_alerts
 
     total_events = len(events)
     total_alerts = len(alerts)
