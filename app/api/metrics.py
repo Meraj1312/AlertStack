@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from datetime import datetime
 from typing import Optional
-
 from app.db.repository import fetch_events, fetch_alerts
+from app.config.settings import settings
+
 
 router = APIRouter()
 
@@ -12,8 +13,8 @@ def get_metrics(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ):
-    events = fetch_events(limit=10000, offset=0)
-    alerts = fetch_alerts(limit=10000, offset=0)
+    events = fetch_events(limit=settings.MAX_FETCH_LIMIT, offset=0)
+    alerts = fetch_alerts(limit=settings.MAX_FETCH_LIMIT, offset=0)
 
     if start_time or end_time:
         filtered_events = []
