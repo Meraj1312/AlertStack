@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime
 
-from app.core.event_store import query_events
+from app.db.repository import fetch_events
 
 router = APIRouter()
 
@@ -20,22 +20,35 @@ def get_events(
     if start_time and end_time and start_time > end_time:
         return {"total": 0, "events": []}
 
-    results = query_events(
+    events = fetch_events(
         user_id=user_id,
         event_type=event_type,
         severity=severity,
-        start_time=start_time,
-        end_time=end_time,
+        limit=limit,
+        offset=offset
     )
 
-    paginated = results[offset: offset + limit]
+    if start_time or end_time:
+        filtered = []
+
+        for event in events:
+            event_time = datetime.fromisoformat(event["timestamp"])
+
+            if start_time and event_time < start_time:
+                continue
+            if end_time and event_time > end_time:
+                continue
+
+            filtered.append(event)
+
+        events = filtered
 
     return {
-        "total": len(results),
+        "total": len(events),
         "filters": {
             "user_id": user_id,
             "event_type": event_type,
             "severity": severity
         },
-        "events": paginated
-    } 
+        "events": events
+    }
