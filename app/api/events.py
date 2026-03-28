@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime
-
 from app.db.repository import fetch_events
+from app.config.settings import settings
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ def get_events(
     severity: Optional[str] = Query(None, regex="^(low|medium|high|critical)$"),
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-    limit: int = 50,
+    limit: int = settings.DEFAULT_LIMIT,
     offset: int = 0,
 ):
     if start_time and end_time and start_time > end_time:
