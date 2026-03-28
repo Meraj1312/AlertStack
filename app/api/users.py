@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from typing import Optional
 from datetime import datetime
 
-from app.core.event_store import query_events
+from app.db.repository import fetch_user_activity
 
 router = APIRouter()
 
@@ -14,14 +14,25 @@ def get_user_activity(
     end_time: Optional[datetime] = None,
     limit: int = 100,
 ):
-    events = query_events(
-        user_id=user_id,
-        start_time=start_time,
-        end_time=end_time,
-    )
+    events = fetch_user_activity(user_id)
 
-   
-    events.sort(key=lambda x: x["timestamp"])
+    # oldest → newest (timeline view)
+    events = list(reversed(events))
+
+    if start_time or end_time:
+        filtered = []
+
+        for event in events:
+            event_time = datetime.fromisoformat(event["timestamp"])
+
+            if start_time and event_time < start_time:
+                continue
+            if end_time and event_time > end_time:
+                continue
+
+            filtered.append(event)
+
+        events = filtered
 
     timeline = events[:limit]
 
