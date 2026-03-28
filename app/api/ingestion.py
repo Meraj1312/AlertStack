@@ -7,10 +7,11 @@ from app.correlation.engine import CorrelationEngine
 from app.detection.engine import DetectionEngine
 from app.detection.context import DetectionContext
 from app.db.repository import save_event
+from app.config.settings import settings
 
 router = APIRouter()
 
-policy_manager = PolicyManager("app/risk/policy.json")
+policy_manager = PolicyManager(settings.POLICY_PATH)
 policy_manager.load_policy()
 
 risk_engine = RiskEngine(policy_manager)
