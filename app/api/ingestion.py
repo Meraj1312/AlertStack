@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.event_schema import RawEvent
-from app.core.event_store import add_event
 from app.core.normalization import normalize_event
 from app.risk.engine import RiskEngine
 from app.risk.config import PolicyManager
 from app.correlation.engine import CorrelationEngine
 from app.detection.engine import DetectionEngine
 from app.detection.context import DetectionContext
+from app.db.repository import save_event
 
 router = APIRouter()
 
@@ -22,6 +22,8 @@ detection_engine = DetectionEngine(detection_context)
 
 @router.post("/ingest")
 def ingest_event(event: RawEvent):
+    raw_event_dict = event.dict()
+
     normalized_event = normalize_event(event)
 
     enriched_event = risk_engine.apply(normalized_event)
@@ -32,15 +34,16 @@ def ingest_event(event: RawEvent):
     detection_result = detection_engine.run(correlated_event)
 
     correlated_event["detection"] = detection_result
+    correlated_event["raw"] = raw_event_dict
 
-    added = add_event(correlated_event)
 
-    if not added:
+    try:
+        save_event(correlated_event)
+    except Exception as e:
         raise HTTPException(
-            status_code=406,
-            detail="Duplicate event_id. Event ignored."
+            status_code=400,
+            detail=f"Failed to store event: {str(e)}"
         )
-
     return {
         "status": "success",
         "message": "Event ingested successfully",
@@ -48,4 +51,4 @@ def ingest_event(event: RawEvent):
         "risk": correlated_event["risk"],
         "correlation": correlated_event.get("correlation", None),
         "detection": correlated_event["detection"]
-    } 
+    }
