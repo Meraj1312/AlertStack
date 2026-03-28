@@ -2,8 +2,7 @@ from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime
 
-from app.core.event_store import query_events
-from app.core.alert_builder import build_alerts_from_events
+from app.db.repository import fetch_alerts
 from app.schemas.alert_response import AlertsAPIResponse
 
 router = APIRouter()
@@ -18,24 +17,30 @@ def get_alerts(
     limit: int = 50,
     offset: int = 0,
 ):
-    
-    events = query_events(
-        user_id=user_id,
-        start_time=start_time,
-        end_time=end_time,
-    )
+    alerts = fetch_alerts(limit=limit, offset=offset)
 
-    
-    alerts = build_alerts_from_events(events)
+    filtered = []
 
-    
-    if severity:
-        alerts = [a for a in alerts if a.get("severity") == severity]
+    for alert in alerts:
+        if user_id and alert.get("user_id") != user_id:
+            continue
 
-   
-    paginated = alerts[offset: offset + limit]
+        if severity and alert.get("severity") != severity:
+            continue
+
+        if start_time or end_time:
+            event_time = datetime.fromisoformat(alert["timestamp"])
+
+            if start_time and event_time < start_time:
+                continue
+            if end_time and event_time > end_time:
+                continue
+
+        filtered.append(alert)
+
+    paginated = filtered[offset: offset + limit]
 
     return {
-        "total": len(alerts),
+        "total": len(filtered),
         "alerts": paginated
     }
